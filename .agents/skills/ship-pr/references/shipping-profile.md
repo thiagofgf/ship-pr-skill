@@ -17,7 +17,10 @@ could not observe, and name the command that would settle it.
 - **Unresolved threads block merge:** yes | no
 - **Approvals required:** <n>; code-owner review: yes | no
 - **Merge methods:** merge | squash | rebase — history uses <method>
-- **Review bots:** <name, where it is configured, when it is skipped> | none
+- **Review bots:** <name, where it is configured, when it is skipped (drafts?
+  promotion PRs?)> | none
+- **Review budget:** <run cap per branch and where it is set; PR size
+  ceiling> | none
 - **Local gates:** `<command>` && `<command>` … (mirror of the required job)
 - **Migrations:** <tool and directory>; applied by <workflow | hand>; status
   command `<command>` | none

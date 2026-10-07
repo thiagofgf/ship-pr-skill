@@ -89,6 +89,8 @@ gh api graphql -F owner=<owner> -F name=<repo> -F n=<n> -f query='
   gate that never closes.
 - A bot that re-reviews on every push opens new threads after each fix
   commit. The loop converges; treat each round as normal, not scope creep.
+  But each round is usually a full review of the **whole diff**, billed per
+  token — see "Review rounds cost money" below.
 - A bot check can be green while the review failed (for example a comment
   saying suggestions could not be generated). Read what it posted, not just
   the tick. A `cancel` conclusion is a killed run, not a pass — re-run it.
@@ -116,6 +118,46 @@ gh api graphql -f query='mutation { resolveReviewThread(input:
 
 Never resolve a thread you neither applied nor answered. Replying and
 resolving without a push does not trigger a new bot review; a push does.
+
+## Review rounds cost money
+
+When an AI reviewer re-reviews on every push, the bill is
+`rounds × whole diff`. Size multiplies every round, not just the first.
+
+- **Iterate as a draft.** Open the PR with `gh pr create --draft` when the
+  bot skips drafts (most do, or can be configured to). The draft saves the
+  review bill, not CI: required checks still run on every push, and the
+  local gates still apply. When the gates are green, `gh pr ready <n>` —
+  that one event buys the first full review.
+- **Keep PRs small.** Around 500 changed lines / 10 files unless the profile
+  says otherwise. Bigger than that, split by task before opening; reviewers,
+  human or not, read a slice better than a story.
+- **Batch fixes.** After ready, apply a round's findings in one push rather
+  than one push per finding.
+
+### Stop the loop on purpose — the round-5 flip
+
+The loop ends only when a round finds nothing, and the reviewer decides
+that, not you. Applying every nit can take a PR to 20+ rounds.
+**Resolving costs nothing; pushing costs a full re-review.** That asymmetry
+is the decision:
+
+- Rounds 1–4: apply what is real, batched one push per round.
+- **From round 5:** decline, in one batch and with the reason recorded, every
+  low-importance finding that has no reachable failure scenario on code that
+  passes the gates and its tests — then merge. Saying the cost out loud in
+  the reply is a legitimate engineering reason.
+- A finding whose fix produces the next finding is one design conversation:
+  resolve the whole shape in a single push instead of trading turns.
+- A minor finding **rides along free** when a round is already being bought
+  for something bigger. The rule refuses to spend a round on a nit, not to
+  fix one.
+
+When the profile lists a run budget for the review bot (for example a
+repository variable that stops automatic review after N runs per branch),
+treat the budget as spent effort, not as a failure: apply or decline the
+open threads, and ask for another round explicitly (`/review`) only when it
+is genuinely warranted.
 
 ## Flaky checks are a budget, not a loop
 
@@ -224,4 +266,6 @@ succeeded.
 - **Infinite flake reruns** — two, then classify and move on.
 - **Merging seconds after the first comment** — the gate is every required
   check green and, when required, zero unresolved threads.
+- **Pushing per finding, or applying every nit forever** — batch each round,
+  and flip to decline-and-merge from round 5.
 - **Calling a merge a release** — prove the deployed SHA and the behavior.
